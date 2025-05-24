@@ -5,7 +5,7 @@ pipeline {
         // Exact credential IDs match karein
         AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID') 
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-        SSH_KEY_FILE          = credentials('SSH_PRIVATE_KEY') 
+        SSH_PRIVATE_KEY       = credentials('SSH_PRIVATE_KEY') 
     }
 
     stages {
@@ -30,7 +30,7 @@ pipeline {
                     // Temporary file mein SSH key save karein
                     sh """
                     mkdir -p ~/.ssh
-                    cat ${env.SSH_KEY_FILE} > ~/.ssh/mongodb.key
+                    cat ${env.SSH_PRIVATE_KEY} > ~/.ssh/mongodb.key
                     chmod 600 ~/.ssh/mongodb.key
                     echo "[mongodb_servers]" > inventory.ini
                     echo "$(terraform -chdir=../terraform output -raw instance_ip) ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/mongodb.key" >> inventory.ini
