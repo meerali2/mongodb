@@ -1,23 +1,25 @@
 pipeline {
     agent any
 
-        environment {
-        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY')
-        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_KEY')
-        ANSIBLE_SSH_KEY       = credentials('ANSIBLE_SSH_PRIVKEY')
+    environment {
+        // Exact credential IDs match karein
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID') 
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        SSH_KEY_FILE          = credentials('SSH_PRIVATE_KEY') 
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Terraform Apply') {
             steps {
                 dir('terraform') {
                     sh 'terraform init'
                     sh 'terraform apply -auto-approve'
-                    sh 'terraform output -json > tf_output.json'
-                }
-                script {
-                    def tfOutput = readJSON file: 'terraform/tf_output.json'
-                    env.SERVER_IP = tfOutput.instance_ip.value
                 }
             }
         }
@@ -25,22 +27,16 @@ pipeline {
         stage('Configure MongoDB') {
             steps {
                 dir('ansible') {
+                    // Temporary file mein SSH key save karein
                     sh """
+                    mkdir -p ~/.ssh
+                    cat ${env.SSH_KEY_FILE} > ~/.ssh/mongodb.key
+                    chmod 600 ~/.ssh/mongodb.key
                     echo "[mongodb_servers]" > inventory.ini
-                    echo "${env.SERVER_IP} ansible_user=ubuntu" >> inventory.ini
-                    ansible-playbook -i inventory.ini playbook.yml --private-key=${env.ANSIBLE_SSH_KEY}
+                    echo "$(terraform -chdir=../terraform output -raw instance_ip) ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/mongodb.key" >> inventory.ini
+                    ansible-playbook -i inventory.ini playbook.yml
                     """
                 }
-            }
-        }
-    }
-
-    post {
-        always {
-            dir('terraform') {
-                sh """
-		echo "mongodb installed successfully"
-		"""
             }
         }
     }
