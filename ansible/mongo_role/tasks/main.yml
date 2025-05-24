@@ -1,0 +1,52 @@
+---
+- name: Import MongoDB GPG key
+  apt_key:
+    url: "https://www.mongodb.org/static/pgp/server-{{ mongodb_version }}.asc"
+    state: present
+
+- name: Add MongoDB repository
+  apt_repository:
+    repo: "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/{{ mongodb_version }} multiverse"
+    state: present
+    filename: "mongodb-org-{{ mongodb_version }}"
+
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install MongoDB packages
+  apt:
+    name: "mongodb-org={{ mongodb_version }}.*"
+    state: present
+
+- name: Create MongoDB data directory
+  file:
+    path: "{{ mongodb_data_dir }}"
+    state: directory
+    owner: "{{ mongodb_user }}"
+    group: "{{ mongodb_group }}"
+    mode: '0755'
+
+- name: Create MongoDB log directory
+  file:
+    path: "{{ mongodb_log_dir }}"
+    state: directory
+    owner: "{{ mongodb_user }}"
+    group: "{{ mongodb_group }}"
+    mode: '0755'
+
+- name: Configure MongoDB
+  template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart mongodb
+
+- name: Enable and start MongoDB service
+  service:
+    name: mongod
+    enabled: yes
+    state: started

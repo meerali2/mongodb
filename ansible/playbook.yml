@@ -1,0 +1,4 @@
+- hosts: node1
+  become: yes
+  roles:
+    - mongo_role
